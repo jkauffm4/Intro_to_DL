@@ -18,7 +18,8 @@ from sklearn.preprocessing import StandardScaler
 from torchvision import transforms
 from torchvision import datasets
 
-from sklearn.metrics import precision_score, recall_score, f1_score
+from sklearn.metrics import precision_score, recall_score, f1_score, confusion_matrix
+import seaborn as sns
 
 from torch.utils.data import TensorDataset, DataLoader
 
@@ -43,8 +44,11 @@ learning_rate = 1e-2
 optimizer = torch.optim.Adam(cifar10_model.parameters(), lr = learning_rate)
 loss_fn = torch.nn.CrossEntropyLoss()
 n_epochs = 20
-cifar10_model.train()
+train_loss = 0
+train_loss_list = []
+
 for epoch in range(n_epochs):
+  cifar10_model.train()
   for imgs, labels in train_loader:
     batch_size = imgs.shape[0]
     outputs = cifar10_model(imgs.view(batch_size, -1))
@@ -52,6 +56,10 @@ for epoch in range(n_epochs):
     optimizer.zero_grad()
     loss.backward
     optimizer.step()
+    train_loss += loss.item() * imgs.size(0)
+
+  train_loss /= len(train_loader.dataset)
+  train_loss_list.append(train_loss)
   print("Epoch: %d, Loss: %f" % (epoch, float(loss)))
 
 cifar10_model.eval()
@@ -59,6 +67,8 @@ correct = 0
 total = 0
 all_predictions = []
 all_targets = []
+test_loss = 0
+test_loss_list = []
 with torch.no_grad():
     for imgs, labels in train_loader:
         outputs = cifar10_model(imgs.view(imgs.shape[0], -1))
@@ -67,7 +77,12 @@ with torch.no_grad():
         correct += int((predicted == labels).sum())
         all_predictions.extend(predicted.cpu().numpy())
         all_targets.extend(labels.cpu().numpy())
+        test_loss += loss.item() * imgs.size(0)
 
+    test_loss /= len(train_loader.dataset)
+    test_loss_list.append(test_loss)
+
+cm = confusion_matrix(all_targets, all_predictions)
 print("Accuracy: %f" % (correct / total))
 
 accuracy = correct / total
@@ -81,12 +96,21 @@ print(f'Precision: {precision:.4f}')
 print(f'Recall: {recall:.4f}')
 print(f'F1 Score: {f1:.4f}')
 
+plt.figure(figsize=(10, 8))
+sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", xticklabels=range(10), yticklabels=range(10))
+plt.xlabel('Predicted Labels')
+plt.ylabel('True Labels')
+plt.title('Confusion Matrix')
+plt.show()
+
 train_loader = torch.utils.data.DataLoader(cifar10, batch_size = 64, shuffle = True)
 cifar10_model_extended = torch.nn.Sequential(torch.nn.Linear(3072, 512), torch.nn.ReLU(), torch.nn.Linear(512, 256), torch.nn.ReLU(), torch.nn.Linear(256,128), torch.nn.ReLU(), torch.nn.Linear(128, 64), torch.nn.ReLU(), torch.nn.Linear(64, 10))
 learning_rate = 1e-2
 optimizer = torch.optim.Adam(cifar10_model.parameters(), lr = learning_rate)
 loss_fn = torch.nn.CrossEntropyLoss()
 n_epochs = 20
+train_loss = 0
+train_loss_list = []
 cifar10_model_extended.train()
 for epoch in range(n_epochs):
   for imgs, labels in train_loader:
@@ -96,6 +120,9 @@ for epoch in range(n_epochs):
     optimizer.zero_grad()
     loss.backward
     optimizer.step()
+    train_loss += loss.item() * imgs.size(0)
+  train_loss /= len(train_loader.dataset)
+  train_loss_list.append(train_loss)
   print("Epoch: %d, Loss: %f" % (epoch, float(loss)))
 
 cifar10_model_extended.eval()
@@ -103,6 +130,8 @@ correct = 0
 total = 0
 all_predictions = []
 all_targets = []
+test_loss = 0
+test_loss_list = []
 with torch.no_grad():
     for imgs, labels in train_loader:
         outputs = cifar10_model_extended(imgs.view(imgs.shape[0], -1))
@@ -112,7 +141,11 @@ with torch.no_grad():
         all_predictions.extend(predicted.cpu().numpy())
         all_targets.extend(labels.cpu().numpy())
         loss = loss_fn(outputs, labels)
+        test_loss += loss.item() * imgs.size(0)
+    test_loss /= len(train_loader.dataset)
+    test_loss_list.append(test_loss)
 
+cm = confusion_matrix(all_targets, all_predictions)
 print("Accuracy: %f" % (correct / total))
 print("Loss: %f" % (loss))
 
@@ -126,6 +159,13 @@ f1 = f1_score(all_targets, all_predictions, average='macro')
 print(f'Precision: {precision:.4f}')
 print(f'Recall: {recall:.4f}')
 print(f'F1 Score: {f1:.4f}')
+
+plt.figure(figsize=(10, 8))
+sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", xticklabels=range(10), yticklabels=range(10))
+plt.xlabel('Predicted Labels')
+plt.ylabel('True Labels')
+plt.title('Confusion Matrix')
+plt.show()
 
 def binary_map(x):
   return x.map({'yes': 1, 'no': 0})
