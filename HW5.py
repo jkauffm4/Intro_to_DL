@@ -439,6 +439,7 @@ if __name__ == "__main__":
                 total += tgt.numel()
 
         avg_val_loss = val_loss / len(dataloader)
+        val_loss_list.append(avg_val_loss)
         accuracy = correct / total
 
         print(f'Epoch {epoch + 1}, Training loss: {avg_train_loss}, Validation loss: {avg_val_loss}, Validation Accuracy: {accuracy}%')
